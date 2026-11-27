@@ -1,0 +1,73 @@
+name: Sync portfolio from the live site
+
+# The live site keeps its works in a database, so GitHub Pages cannot render them on
+# its own. This workflow copies the finished pages, styles, scripts and images from
+# the live site into this repository and publishes them, so the GitHub Pages address
+# shows the real galleries. It runs every hour and can also be started by hand from
+# the Actions tab ("Run workflow").
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/sync.yml"
+      - "tools/mirror.mjs"
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Copy the live portfolio into this repository
+        run: node tools/mirror.mjs
+
+      - name: Save any changes
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "Refresh the portfolio copy from the live site"
+            git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Pages
+        if: steps.commit.outputs.changed == 'true' || github.event_name != 'schedule'
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        if: steps.commit.outputs.changed == 'true' || github.event_name != 'schedule'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "."
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        if: steps.commit.outputs.changed == 'true' || github.event_name != 'schedule'
+        uses: actions/deploy-pages@v4
