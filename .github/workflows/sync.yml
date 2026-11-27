@@ -43,20 +43,18 @@ jobs:
       - name: Copy the live portfolio into this repository
         run: node tools/mirror.mjs
 
-      - name: Save any changes
+      - name: Check for changes
         id: commit
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add --all
           if git diff --cached --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
-            git commit -m "Refresh the portfolio copy from the live site"
-            git push
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # Publish first, save afterwards: saving triggers the other Pages workflow with
+      # exactly this content, so the two deployments can never disagree.
       - name: Setup Pages
         if: steps.commit.outputs.changed == 'true' || github.event_name != 'schedule'
         uses: actions/configure-pages@v5
@@ -71,3 +69,11 @@ jobs:
         id: deployment
         if: steps.commit.outputs.changed == 'true' || github.event_name != 'schedule'
         uses: actions/deploy-pages@v4
+
+      - name: Save the refreshed copy
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Refresh the portfolio copy from the live site"
+          git push
