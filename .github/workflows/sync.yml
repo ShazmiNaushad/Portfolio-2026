@@ -3,8 +3,8 @@ name: Sync portfolio from the live site
 # The live site keeps its works in a database, so GitHub Pages cannot render them on
 # its own. This workflow copies the finished pages, styles, scripts and images from
 # the live site into this repository and publishes them, so the GitHub Pages address
-# shows the real galleries. It runs every five minutes (GitHub occasionally starts it a
-# little late) and can also be started by hand from the Actions tab ("Run workflow").
+# shows the real galleries. The studio asks GitHub to rebuild it the moment anything is
+# saved, and a five-minute schedule runs as a safety net.
 
 on:
   push:
@@ -14,6 +14,10 @@ on:
       - "tools/mirror.mjs"
   schedule:
     - cron: "*/5 * * * *"
+  # The studio asks for this the moment the owner saves something, so the copy is
+  # never more than a minute behind. The schedule is only the safety net.
+  repository_dispatch:
+    types: ["studio-update"]
   workflow_dispatch:
 
 permissions:
@@ -56,18 +60,18 @@ jobs:
       # Publish first, save afterwards: saving triggers the other Pages workflow with
       # exactly this content, so the two deployments can never disagree.
       - name: Setup Pages
-        if: steps.commit.outputs.changed == 'true' || github.event_name != 'schedule'
+        if: steps.commit.outputs.changed == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         uses: actions/configure-pages@v5
 
       - name: Upload artifact
-        if: steps.commit.outputs.changed == 'true' || github.event_name != 'schedule'
+        if: steps.commit.outputs.changed == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         uses: actions/upload-pages-artifact@v3
         with:
           path: "."
 
       - name: Deploy to GitHub Pages
         id: deployment
-        if: steps.commit.outputs.changed == 'true' || github.event_name != 'schedule'
+        if: steps.commit.outputs.changed == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         uses: actions/deploy-pages@v4
 
       - name: Save the refreshed copy
