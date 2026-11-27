@@ -3,8 +3,8 @@ name: Sync portfolio from the live site
 # The live site keeps its works in a database, so GitHub Pages cannot render them on
 # its own. This workflow copies the finished pages, styles, scripts and images from
 # the live site into this repository and publishes them, so the GitHub Pages address
-# shows the real galleries. The studio asks GitHub to rebuild it the moment anything is
-# saved, and a five-minute schedule runs as a safety net.
+# shows the real galleries. The studio asks GitHub to rebuild it shortly after anything
+# is saved, and a five-minute schedule runs as a safety net.
 
 on:
   push:
@@ -12,10 +12,11 @@ on:
     paths:
       - ".github/workflows/sync.yml"
       - "tools/mirror.mjs"
+      - "tools/quiet.mjs"
   schedule:
     - cron: "*/5 * * * *"
-  # The studio asks for this the moment the owner saves something, so the copy is
-  # never more than a minute behind. The schedule is only the safety net.
+  # The studio asks for this shortly after the owner stops saving, so a run of quick
+  # edits becomes one rebuild. The schedule is only the safety net.
   repository_dispatch:
     types: ["studio-update"]
   workflow_dispatch:
@@ -43,6 +44,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+
+      # Several quick saves should produce one rebuild, not one per save, so wait for
+      # the live site to stop changing before copying it.
+      - name: Wait until the studio goes quiet
+        if: github.event_name == 'repository_dispatch'
+        run: node tools/quiet.mjs
 
       - name: Copy the live portfolio into this repository
         run: node tools/mirror.mjs
