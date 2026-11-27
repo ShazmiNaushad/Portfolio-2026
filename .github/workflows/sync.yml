@@ -3,8 +3,8 @@ name: Sync portfolio from the live site
 # The live site keeps its works in a database, so GitHub Pages cannot render them on
 # its own. This workflow copies the finished pages, styles, scripts and images from
 # the live site into this repository and publishes them, so the GitHub Pages address
-# shows the real galleries. It runs every hour and can also be started by hand from
-# the Actions tab ("Run workflow").
+# shows the real galleries. It runs every five minutes (GitHub occasionally starts it a
+# little late) and can also be started by hand from the Actions tab ("Run workflow").
 
 on:
   push:
@@ -13,7 +13,7 @@ on:
       - ".github/workflows/sync.yml"
       - "tools/mirror.mjs"
   schedule:
-    - cron: "23 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions:
